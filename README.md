@@ -1,6 +1,5 @@
----
+Markdown
 
-```markdown
 # C++ High-Speed Payment Processing Engine
 
 A fast, reliable payment engine built in **C++17**. It handles thousands of payment requests per second, prevents double-charging customers, and saves transactions to a database without slowing down the system.
@@ -51,14 +50,11 @@ Tested on **Linux (Arch Linux)** with 10,000 simultaneous requests:
 ```bash
 g++ -std=c++17 -O3 -pthread main.cpp -lmariadb -o payment_engine
 
-```
+2. Run
+Bash
 
-### 2. Run
-
-```bash
 ./payment_engine
 
-```
+📜 License
 
----
-
+This project is open-source under the MIT License.
