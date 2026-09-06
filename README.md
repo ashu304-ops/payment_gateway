@@ -1,81 +1,64 @@
-# High-Performance C++ Payment Gateway Engine
+---
 
-A zero-allocation, ultra-low-latency payment processing engine built in C++17 for high-throughout financial environments. Designed to handle heavy concurrency, enforce strict transaction idempotency across distributed clients, and offload database persistence without blocking the core execution thread.
+```markdown
+# C++ High-Speed Payment Processing Engine
 
-During local bench testing on Arch Linux, the engine handled **10,000 concurrent transactions in ~69 milliseconds (~144,000 req/sec)** with a median (P50) processing latency of **336 nanoseconds**.
+A fast, reliable payment engine built in **C++17**. It handles thousands of payment requests per second, prevents double-charging customers, and saves transactions to a database without slowing down the system.
+
+During testing, it processed **10,000 transactions in under 0.1 seconds (~144,000 transactions per second)** with an internal execution time of just **336 nanoseconds** per payment.
 
 ---
 
-## Key Features
+## 💡 What Problem Does This Solve?
 
-* **Sub-Microsecond Core Execution:** Zero heap allocations on the critical path. Core validation and state machine transitions execute in nanoseconds.
-* **Sharded Atomic Idempotency Manager:** Uses a 64-shard concurrent hash map to detect duplicate requests before execution, eliminating double-charge risks.
-* **Strict Transaction State Machine:** Guarantees atomic, valid state transitions (`CREATED` → `VALIDATING` → `PROCESSING` → `AUTHORIZED` → `CAPTURED` → `SUCCESS`).
-* **Non-Blocking Persistence:** Offloads database logging to a dedicated background worker thread using native MySQL/MariaDB C client bindings.
-* **Extensible Processor Architecture:** Pluggable, polymorphism-based processors for Cards, Bank Transfers, Online Wallets, and Offline Vouchers.
-* **Nanosecond Latency Telemetry:** Built-in percentile tracking (P50, P90, P95, P99, P99.9) measuring queue wait time, core processing, and end-to-end latency.
+When millions of people buy things online at the same time, two main problems happen:
+1. **Slow Checkout:** Databases get overwhelmed, making users wait.
+2. **Double Charging:** If a user clicks "Pay" twice because their internet lagged, they might get charged twice.
 
 ---
 
-## Performance Summary
+## 🛠️ How It Works (In Simple Terms)
 
-* **Throughput:** ~144,500 requests/sec
-* **Batch Size:** 10,000 incoming requests
-* **Worker Threads:** 8 standard POSIX worker threads
-* **Duplicate Detection Rate:** 100% accuracy (2,000 duplicate idempotency keys caught instantly out of 10,000)
+Think of this engine like a high-speed bank drive-thru:
 
-| Percentile | Queue Latency | Processing Latency | End-to-End Latency |
-| :--- | :--- | :--- | :--- |
-| **P50** | 1.40 ms | **336 ns** | 2.15 ms |
-| **P90** | 5.33 ms | **534 ns** | 5.73 ms |
-| **P95** | 5.72 ms | **669 ns** | 6.42 ms |
-| **P99** | 6.03 ms | **1.02 µs** | 7.48 ms |
-| **P99.9** | 6.45 ms | **22.70 µs** | 7.50 ms |
+1. **The Worker Pool (8 Workers):** Instead of one clerk handling all customers, 8 dedicated workers process payments at the exact same time.
+2. **The Double-Charge Guard (Idempotency):** Before charging a card, the engine checks if the payment request was already sent. If a user clicks "Pay" twice, the second request is caught instantly and handed the copy of the first receipt.
+3. **The Rules Enforcer (State Machine):** A payment must strictly follow steps in order (`Created` ➔ `Validated` ➔ `Authorized` ➔ `Completed`). It prevents weird errors like refunding a payment that was never made.
+4. **The Background Record Keeper (Async Database):** Instead of forcing the customer to wait while writing data to disk, the engine approves the payment instantly and hands the transaction receipt to a background clerk to save in MySQL later.
 
 ---
 
-## Architecture Overview
+## ⚡ Performance Numbers
 
-1. **Ingress:** Transactions are assigned an ingress timestamp and dispatched to a ThreadPool task queue.
-2. **Idempotency Guard:** The worker thread checks the `AtomicIdempotencyManager` using a sharded hash key.
-   * **First Request (Leader):** Acquires execution rights and proceeds to processing.
-   * **Duplicate Request (Follower):** Suspends and waits for the leader thread to finish, returning the cached result directly.
-3. **Core Processing:** Validates payload parameters and routes the request through the `ProcessorRegistry`.
-4. **State Machine:** Enforces valid lifecycle transitions. Invalid state shifts reject immediately.
-5. **Async DB Queue:** The finalized transaction record is pushed into a lock-free queue for background thread database insertion (`INSERT ... ON DUPLICATE KEY UPDATE`).
+Tested on **Linux (Arch Linux)** with 10,000 simultaneous requests:
 
----
-
-## Prerequisites
-
-To build and run the engine locally, you will need:
-
-* **C++ Compiler:** `g++` or `clang++` supporting **C++17** or higher.
-* **MySQL / MariaDB Client Library:**
-  * **Arch Linux:** `sudo pacman -S mariadb-libs`
-  * **Ubuntu/Debian:** `sudo apt install libmariadb-dev` or `libmysqlclient-dev`
-  * **Fedora/RHEL:** `sudo dnf install mariadb-devel`
-* **MySQL/MariaDB Server:** Running on `127.0.0.1:3306` (Optional for benchmarks; connection failures log a non-fatal warning).
+| What Was Tested | Result | What It Means |
+| :--- | :--- | :--- |
+| **Total Speed** | **144,545 req/sec** | Can handle huge traffic spikes without crashing. |
+| **Duplicate Prevention** | **2,000 caught** | Exactly 2,000 duplicate requests were blocked instantly. |
+| **Core Payment Time (P50)**| **336 nanoseconds** | Takes less than 1 microsecond to process the logic. |
+| **Total Time for 10k Items**| **0.069 seconds** | Processed 10,000 payments faster than a blink of an eye. |
 
 ---
 
-## Database Setup
+## 🚀 How to Run It
 
-Run the following SQL snippet in your MySQL server to set up the persistence target:
+### Prerequisites
+* A C++ compiler (`g++`)
+* MariaDB / MySQL client library installed (`mariadb-libs` on Arch, `libmariadb-dev` on Ubuntu)
 
-```sql
-CREATE DATABASE IF NOT EXISTS payment_gateway_db;
-USE payment_gateway_db;
+### 1. Compile
+```bash
+g++ -std=c++17 -O3 -pthread main.cpp -lmariadb -o payment_engine
 
-CREATE TABLE IF NOT EXISTS payment_transactions (
-    transaction_id VARCHAR(64) PRIMARY KEY,
-    idempotency_key VARCHAR(64) NOT NULL,
-    merchant_id VARCHAR(64) NOT NULL,
-    amount BIGINT NOT NULL,
-    currency VARCHAR(8) NOT NULL,
-    payment_method VARCHAR(32) NOT NULL,
-    status VARCHAR(32) NOT NULL,
-    response_code VARCHAR(32) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_idempotency (idempotency_key)
-);
+```
+
+### 2. Run
+
+```bash
+./payment_engine
+
+```
+
+---
+
