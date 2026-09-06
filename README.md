@@ -1,5 +1,4 @@
 
-
 # C++ High-Speed Payment Processing Engine
 
 A fast, reliable payment engine built in **C++17**. It handles thousands of payment requests per second, prevents double-charging customers, and saves transactions to a database without slowing down the system.
