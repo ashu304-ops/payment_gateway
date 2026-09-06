@@ -1,6 +1,6 @@
 # High-Performance C++ Payment Gateway Engine
 
-A zero-allocation, ultra-low-latency payment processing engine built in C++17 for high-throughput financial environments. Designed to handle heavy concurrency, enforce strict transaction idempotency across distributed clients, and offload database persistence without blocking the core execution thread.
+A zero-allocation, ultra-low-latency payment processing engine built in C++17 for high-throughout financial environments. Designed to handle heavy concurrency, enforce strict transaction idempotency across distributed clients, and offload database persistence without blocking the core execution thread.
 
 During local bench testing on Arch Linux, the engine handled **10,000 concurrent transactions in ~69 milliseconds (~144,000 req/sec)** with a median (P50) processing latency of **336 nanoseconds**.
 
