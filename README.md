@@ -1,4 +1,4 @@
-Markdown
+
 
 # C++ High-Speed Payment Processing Engine
 
